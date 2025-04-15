@@ -73,6 +73,7 @@ This sets:
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_DEFAULT_REGION`
 - `AWS_PROFILE`
+-  Make sure the ~/.aws/config has profile with region
 
 You can also add this to your `~/.zshrc`:
 
