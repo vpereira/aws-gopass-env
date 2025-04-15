@@ -3,10 +3,14 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/ini.v1"
 )
 
 var setEnvCmd = &cobra.Command{
@@ -16,7 +20,6 @@ var setEnvCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		profile := args[0]
 		path := fmt.Sprintf("aws/%s", profile)
-
 		out, err := exec.Command("gopass", "show", path).Output()
 		if err != nil {
 			return fmt.Errorf("failed to fetch secret from gopass: %w", err)
@@ -43,12 +46,53 @@ var setEnvCmd = &cobra.Command{
 			if strings.HasPrefix(key, "AWS_") {
 				fmt.Printf("export %s=\"%s\"\n", key, val)
 			}
+
+			if key == "AWS_DEFAULT_REGION" {
+				// Add region to ~/.aws/config for the profile
+				ensureAWSProfileRegion(profile, val)
+			}
 		}
-
 		fmt.Printf("export AWS_PROFILE=\"%s\"\n", profile)
-
 		return nil
 	},
+}
+
+func ensureAWSProfileRegion(profile, region string) {
+	if region == "" {
+		return
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get user home directory: %v\n", err)
+		return
+	}
+
+	awsDir := filepath.Join(usr.HomeDir, ".aws")
+	configPath := filepath.Join(awsDir, "config")
+
+	// Ensure ~/.aws exists
+	if err := os.MkdirAll(awsDir, 0700); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create AWS config directory: %v\n", err)
+		return
+	}
+
+	// Load or create the config file
+	cfg, err := ini.LooseLoad(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load AWS config: %v\n", err)
+		return
+	}
+
+	// Use "profile name" syntax per AWS CLI convention
+	sectionName := "profile " + profile
+
+	section := cfg.Section(sectionName)
+	section.Key("region").SetValue(region)
+
+	if err := cfg.SaveTo(configPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to write AWS config: %v\n", err)
+	}
 }
 
 func init() {
