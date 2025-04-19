@@ -5,6 +5,7 @@ import (
 	"os/exec"
 
 	"github.com/spf13/cobra"
+	"github.com/vpereira/aws-gopass-env/internal/gopassutils"
 )
 
 var (
@@ -23,6 +24,12 @@ var createCmd = &cobra.Command{
 		}
 		name := args[0]
 		fullPath := fmt.Sprintf("aws/%s", name)
+
+		exists, _ := gopassutils.EntryExists(fullPath)
+
+		if exists {
+			return fmt.Errorf("profile '%s' already exists in gopass", name)
+		}
 
 		content := fmt.Sprintf(
 			"AWS_ACCESS_KEY_ID=%s\nAWS_SECRET_ACCESS_KEY=%s\nAWS_DEFAULT_REGION=%s\n",

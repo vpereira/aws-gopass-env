@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vpereira/aws-gopass-env/internal/gopassutils"
 )
 
 var (
@@ -63,6 +64,12 @@ var updateCmd = &cobra.Command{
 			if val, ok := kv[key]; ok {
 				buffer.WriteString(fmt.Sprintf("%s=%s\n", key, val))
 			}
+		}
+
+		exists, _ := gopassutils.EntryExists(path)
+
+		if exists {
+			return fmt.Errorf("profile '%s' already exists in gopass", name)
 		}
 
 		// Step 5: Overwrite the entry
